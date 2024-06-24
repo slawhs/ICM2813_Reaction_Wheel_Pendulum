@@ -19,5 +19,6 @@ b = Mp*Lp^2 + Mw*L^2 + Jp;
 % G_beta = tf([0 1/Jw], [1 0 0]);
 % controlSystemDesigner(G_beta)
 
-G_theta = tf([1], [-b 0 a]);
-controlSystemDesigner(-G_theta)
+G_theta = tf([1], [-b 0 -a]);
+% controlSystemDesigner(G_theta)
+pidTuner(G_theta)

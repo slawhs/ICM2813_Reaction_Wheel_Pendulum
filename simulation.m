@@ -42,16 +42,15 @@ ylabel('Y (m)');
 title('Reaction Wheel Inverted Pendulum')
 
 % Initial positions
-xw = L*sin(theta_0); %wheel x center
+xw = -L*sin(theta_0); %wheel x center
 yw = L*cos(theta_0); %wheel y center
 
-xw_end = xw +  r*sin(beta_0); %wheel x end
+xw_end = xw - r*sin(beta_0); %wheel x end
 yw_end = yw + r*cos(beta_0); %wheel y end
 
 pos_wheel = [xw-r, yw-r, r*2, r*2]; %[x y w h]
 
-
-base = plot([-0.5, 0.5],[0, 0],'k','LineWidth',2); % base line
+base = plot([-1, 1],[0, 0],'k','LineWidth',2); % base line
 
 radious = plot([xw, xw_end],[yw, yw_end],'r','LineWidth',1.5); % Pendulum rod
 pendulum = plot([0, xw],[0, yw],'b','LineWidth',1.5); % Pendulum rod
@@ -69,11 +68,16 @@ time = 0;
 
 %% Controllers discretization
 % Compensator Parameters
-k = 16.88;
-z1 = 0.14;
-p1 = 0.0048;
-z2 = 0.013;
+k = 5.5;
+z1 = 0.1;
+p1 = 0.5;
+z2 = 0.03;
 p2 = 0.0093;
+
+% PID Parameters
+kp = -59.025;
+ki = -2.159;
+kd = 0;
 
 % Controller initial conditions
 torque_prev = 0;
@@ -82,9 +86,7 @@ error_prev = 0;
 error_prev_prev = 0;
 
 %% Main Loop
-loop = true;
-
-while loop
+while true
     % Time
     time = time + time_skip;
     text = ['Time:', num2str(time)];
@@ -99,23 +101,36 @@ while loop
     beta = wrapToPi(v_beta(1));
     
     % Update Controller Variables
-    %theta
     error = 0 - theta;  % Update actual error
-    torque_in =  (k*(error - 2*error_prev + error_prev_prev) + ...
-        k*time_skip*(z1+z2)*(error-error_prev) + ...
-        error*k*z1*z2*(time_skip^2) + ...
-        2*torque_prev - torque_prev_prev + ...
-        time_skip*torque_prev_prev*(p1+p2)) / ...
-        (p1*p2*(time_skip^2) + (p1+p2)*time_skip + 1);
     
+    % PID Control Signal
+    torque_in = kp*(error - error_prev) + ...
+        ki*error*time_skip + ...
+        kd*((error - 2*error_prev + error_prev_prev)/time_skip);
+    
+    % Lead Lag Compensator Control Signal
+    % torque_in =  (k*(error - 2*error_prev + error_prev_prev) + ...
+    %     k*time_skip*(z1+z2)*(error-error_prev) + ...
+    %     error*k*z1*z2*(time_skip^2) + ...
+    %     2*torque_prev - torque_prev_prev + ...
+    %     time_skip*torque_prev_prev*(p1+p2)) / ...
+    %     (p1*p2*(time_skip^2) + (p1+p2)*time_skip + 1);
+    
+    
+
     % limit max torque
-    torque_in = max(min(torque_in, 1), -1);
+    if torque_in < -1
+        torque_in = -1;
+    elseif torque_in > 1
+        torque_in = 1;
+    end
+    % torque_in = max(min(torque_in, 1), -1);
 
     % Update Positions
-    xw = L*sin(theta); %wheel x center
+    xw = -L*sin(theta); %wheel x center
     yw = L*cos(theta); %wheel y center
     
-    xw_end = xw +  r*sin(beta); %wheel x end
+    xw_end = xw -  r*sin(beta); %wheel x end
     yw_end = yw + r*cos(beta); %wheel y end
 
     pos_wheel = [xw-r, yw-r, r*2, r*2]; %[x y w h]
@@ -131,7 +146,7 @@ while loop
     set(wheel, 'Position',pos_wheel,'Curvature',[1 1]);
     drawnow;
 
-    % update error
+    % update previous errors and torque
     error_prev_prev = error_prev;
     error_prev = error;  % Update previous error
     torque_prev_prev = torque_prev;
