@@ -75,9 +75,9 @@ z2 = 0.03;
 p2 = 0.0093;
 
 % PID Parameters
-kp = -150.1292 % -7.1649  % -59.025  % -59.025;
+kp = -120.74 % -7.1649  % -59.025  % -59.025;
 ki = 750.369 % 123.0725 % -8.38155 % -2.159;
-kd = 0;
+kd = 20;
 
 % Controller initial conditions
 torque_prev = 0;
@@ -112,9 +112,9 @@ while true
     
     
     % Add input perturbation
-    if 3000 <= counter && counter < 3500
+    if 2000 <= counter && counter < 2500
         torque_in = torque_in + input_perturbation(time);
-    elseif counter >= 3500
+    elseif counter >= 2500
         counter = 0;
     end
 
@@ -179,7 +179,7 @@ end
 
 function perturbation = input_perturbation(time)
     % Example perturbation: sinusoidal disturbance
-    amplitude = 200;
+    amplitude = 100;
     frequency = 0.5; % 1 Hz
     perturbation = amplitude * sin(2 * pi * frequency * time);
     %perturbation = amplitude;
