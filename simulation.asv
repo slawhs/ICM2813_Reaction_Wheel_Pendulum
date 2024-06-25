@@ -112,9 +112,9 @@ while true
     
     
     % Add input perturbation
-    if 3000 <= counter && counter < 3500
+    if 3000 <= counter < 3000
         torque_in = torque_in + input_perturbation(time);
-    elseif counter >= 3500
+    elseif counter >= 3500 
         counter = 0;
     end
 
@@ -181,6 +181,6 @@ function perturbation = input_perturbation(time)
     % Example perturbation: sinusoidal disturbance
     amplitude = 200;
     frequency = 0.5; % 1 Hz
-    perturbation = amplitude * sin(2 * pi * frequency * time);
-    %perturbation = amplitude;
+    %perturbation = amplitude * sin(2 * pi * frequency * time);
+    perturbation = amplitude;
 end

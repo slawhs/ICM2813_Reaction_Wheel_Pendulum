@@ -21,4 +21,22 @@ b = Mp*Lp^2 + Mw*L^2 + Jp;
 
 G_theta = tf([1], [-b 0 -a]);
 % controlSystemDesigner(G_theta)
-pidTuner(G_theta)
+%pidTuner(G_theta)
+
+%% Step Response
+% PID
+kp = -150.1292% BUENOS -59.025;
+ki = 750.369% BUENOS -2.159;
+kd = 0;
+
+pid = tf([kd kp ki], [1 0]);
+control_system = feedback(pid*G_theta, 1);
+[y, t] = step(control_system);
+%y = wrapToPi(y);
+stepinfo(control_system)
+
+plot(t, y)
+title ('Respuesta a un escalón unitario')
+xlabel('Tiempo (s)')
+ylabel('Amplitud (rad)')
+grid on
