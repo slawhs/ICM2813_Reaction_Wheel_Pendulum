@@ -85,14 +85,14 @@ torque_prev_prev = 0;
 error_prev = 0;
 error_prev_prev = 0;
 
-disturbance_duration = 2 * 1000;
-distrubance_counter = 0;
+disturbance_duration = 0;
+disturbance_interval = 0;
 
 %% Main Loop
-disturbance_counter = 0;
+counter = 0;
 while true
     % Time
-    disturbance_counter = disturbance_counter + 1;
+    counter = counter + 1;
     time = time + time_skip;
     text = ['Time:', num2str(time)];
 
@@ -115,10 +115,10 @@ while true
     
     
     % Add input perturbation
-    if disturbance_duration <= disturbance_counter && disturbance_counter < disturbance_duration + 500
-        torque_in = torque_in + input_disturbance(time);
-    elseif disturbance_counter >= 2500
-        disturbance_counter = 0;
+    if 2000 <= counter && counter < 2500
+        torque_in = torque_in + input_perturbation(time);
+    elseif counter >= 2500
+        counter = 0;
     end
 
     % Lead Lag Compensator Control Signal
@@ -178,10 +178,10 @@ function v_beta = beta_model(~, y, Jw, torque_in)
     v_beta(2) = torque_in/Jw;  %ddtheta
 end
 
-function disturbance = input_disturbance(time)
+function perturbation = input_perturbation(time)
     % Example perturbation: sinusoidal disturbance
     amplitude = 100;
     frequency = 0.5; % 1 Hz
-    disturbance = amplitude * sin(2 * pi * frequency * time);
-    %disturbance = amplitude;
+    perturbation = amplitude * sin(2 * pi * frequency * time);
+    %perturbation = amplitude;
 end
