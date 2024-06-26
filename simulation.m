@@ -33,9 +33,6 @@ beta_Q = 0;
 
 %% Initialize Graphic
 f1 = figure;
-hold on;
-grid on;
-
 subplot(2,1,1);  % Create subplot for drawing
 hold on;
 grid on;
@@ -76,6 +73,7 @@ state_text_handle = text(0.45, 0.75, 'Stabilizing', 'Units', 'normalized', 'Font
 % Initialize variables for plotting theta over time
 theta_values = [];
 time_values = [];
+ref_values = [];
 
 subplot(2,1,2);  % Create subplot for theta vs time
 theta_plot = plot(time_values, theta_values, 'b');
@@ -106,9 +104,11 @@ torque_prev_prev = 0;
 error_prev = 0;
 error_prev_prev = 0;
 
+% Distrubance parameters
 disturbance_duration = 7 * 1000;
 disturbance_counter = 0;
 
+% Stabilization text setting
 stabilization_counter = 0;
 stable_state = false;
 post_perturbation_stable_state = false;
@@ -199,21 +199,12 @@ while true
         end
     end
 
-    % Lead Lag Compensator Control Signal
-    % torque_in =  (k*(error - 2*error_prev + error_prev_prev) + ...
-    %     k*time_skip*(z1+z2)*(error-error_prev) + ...
-    %     error*k*z1*z2*(time_skip^2) + ...
-    %     2*torque_prev - torque_prev_prev + ...
-    %     torque_prev*k*p1*(time_skip^2) + ...
-    %     torque_prev_prev*p2*k*(time_skip^2));
-
     % limit max torque
     if torque_in < -1
         torque_in = -1;
     elseif torque_in > 1
         torque_in = 1;
     end
-    % torque_in = max(min(torque_in, 1), -1);
 
     % Update Positions
     xw = -L*sin(theta); %wheel x center
@@ -240,9 +231,10 @@ while true
     drawnow;
 
     % Update theta values for the plot
-    theta_values = [theta_values, theta];
+    theta_values = [theta_values, theta*180/pi];
     time_values = [time_values, time];
-    set(theta_plot, 'XData', time_values, 'YData', theta_values);
+    ref_values = [ref_values, 0];
+    plot(time_values, theta_values, 'b', time_values, ref_values, 'r--');
     drawnow;
 
     % update previous errors and torque
