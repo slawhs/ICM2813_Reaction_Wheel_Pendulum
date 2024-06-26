@@ -25,18 +25,21 @@ G_theta = tf([1], [-b 0 -a]);
 
 %% Step Response
 % PID
-kp = -150.1292% BUENOS -59.025;
-ki = 750.369% BUENOS -2.159;
-kd = 0;
+kp = -71.25; %-120.74; % -7.1649  % -59.025  % -59.025;
+ki = 735.369; %750.369; % 123.0725 % -8.38155 % -2.159;
+kd = 26.7; %23;
 
 pid = tf([kd kp ki], [1 0]);
 control_system = feedback(pid*G_theta, 1);
-[y, t] = step(control_system);
-%y = wrapToPi(y);
-stepinfo(control_system)
 
-plot(t, y)
-title ('Respuesta a un escalón unitario')
+t = 0:0.01:5;
+y = lsim(control_system, 0*t, t);
+plot(t, wrapToPi(y));
+
+% [y, t] = step(control_system);
+% y = wrapToPi(y);
+% stepinfo(control_system)
+title ('Respuesta a una referencia 0')
 xlabel('Tiempo (s)')
 ylabel('Amplitud (rad)')
 grid on
