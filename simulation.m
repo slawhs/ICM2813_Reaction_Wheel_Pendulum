@@ -36,6 +36,10 @@ f1 = figure;
 hold on;
 grid on;
 
+subplot(2,1,1);  % Create subplot for drawing
+hold on;
+grid on;
+
 axis equal
 xlabel('X (m)');
 ylabel('Y (m)');
@@ -61,7 +65,24 @@ axis(gca,'equal');
 xlim([-0.6 0.6]);
 ylim([-0.1 0.6]);
 
-text_handle = text(0.05, 0.95, 'Time: 0', 'Units', 'normalized', 'FontSize', 12, 'FontWeight', 'bold');
+text_handle = text(0.05, 0.95, 'Time: 0', 'Units', 'normalized', 'FontSize', 6, 'FontWeight', 'bold');
+theta_text_handle = text(0.05, 0.85, 'Theta: 0', 'Units', 'normalized', 'FontSize', 6, 'FontWeight', 'bold');
+beta_text_handle = text(0.05, 0.75, 'Beta: 0', 'Units', 'normalized', 'FontSize', 6, 'FontWeight', 'bold');
+stabilization_text_handle = text(0.35, 0.95, 'Stabilization time: N/A', 'Units', 'normalized', 'FontSize', 6, 'FontWeight', 'bold');
+post_perturbation_stabilization_text_handle = text(0.35, 0.85, 'Post-Perturbation Stabilization time: N/A', 'Units', 'normalized', 'FontSize', 6, 'FontWeight', 'bold');
+state_frame_text_handle = text(0.35, 0.75, 'State:', 'Units', 'normalized', 'FontSize', 6, 'FontWeight', 'bold');
+state_text_handle = text(0.45, 0.75, 'Stabilizing', 'Units', 'normalized', 'FontSize', 6, 'FontWeight', 'bold', 'Color', 'r');
+
+% Initialize variables for plotting theta over time
+theta_values = [];
+time_values = [];
+
+subplot(2,1,2);  % Create subplot for theta vs time
+theta_plot = plot(time_values, theta_values, 'b');
+xlabel('Time (s)');
+ylabel('Theta (rad)');
+title('Theta vs Time');
+grid on;
 
 time_skip = 0.001;
 time = 0;
@@ -75,9 +96,9 @@ z2 = 0.03;
 p2 = 0.0093;
 
 % PID Parameters
-kp = -120.74; % -7.1649  % -59.025  % -59.025;
-ki = 750.369; % 123.0725 % -8.38155 % -2.159;
-kd = 20;
+kp = -71.25; %-120.74; % -7.1649  % -59.025  % -59.025;
+ki = 735.369; %750.369; % 123.0725 % -8.38155 % -2.159;
+kd = 26.7; %23;
 
 % Controller initial conditions
 torque_prev = 0;
@@ -85,11 +106,26 @@ torque_prev_prev = 0;
 error_prev = 0;
 error_prev_prev = 0;
 
-disturbance_duration = 2 * 1000;
-distrubance_counter = 0;
+disturbance_duration = 7 * 1000;
+disturbance_counter = 0;
+
+stabilization_counter = 0;
+stable_state = false;
+post_perturbation_stable_state = false;
+stable_text = 'Stabilization time: N/A';
+post_perturbation_stable_text = 'Post-Perturbation Stabilization time: N/A';
+state_frame_text = 'State';
+state_text = 'Stabilizing';
+threshold = 0.1;  % Threshold for considering the pendulum stabilized
+stable_time = 0;
+post_perturbation_stable_time = 0;
+stabilization_period = 1;  % Time in seconds to consider the system stabilized
+stabilization_count = round(stabilization_period / time_skip);
+
+perturbation_applied = false;
 
 %% Main Loop
-disturbance_counter = 0;
+
 while true
     % Time
     disturbance_counter = disturbance_counter + 1;
@@ -105,6 +141,10 @@ while true
     theta = wrapToPi(v_theta(1));
     beta = wrapToPi(v_beta(1));
     
+    % Draw variables
+    theta_text = ['Theta:', num2str(theta*180/pi)];
+    beta_text = ['Beta:', num2str(beta*180/pi)];
+
     % Update Controller Variables
     error = 0 - theta;  % Update actual error
     
@@ -113,12 +153,50 @@ while true
         ki*error*time_skip + ...
         kd*((error - 2*error_prev + error_prev_prev)/time_skip);
     
-    
+    % Get time of stabilization
+    if ~stable_state
+        if abs(theta*180/pi) < threshold
+            stabilization_counter = stabilization_counter + 1;
+            if stabilization_counter >= stabilization_count
+                stable_state = true;
+                stable_time = time;
+                stable_text = ['Stabilization time:', num2str(stable_time)];
+                state_text = 'Stable';
+                set(state_text_handle, 'String', state_text, 'Color', 'g');
+            end
+        else
+            stabilization_counter = 0;
+        end
+    end
+
     % Add input perturbation
     if disturbance_duration <= disturbance_counter && disturbance_counter < disturbance_duration + 500
         torque_in = torque_in + input_disturbance(time);
-    elseif disturbance_counter >= 2500
+        perturbation_applied = true;
+        post_perturbation_stable_state = false;
+        stabilization_counter = 0;
+        state_text = 'Applying Perturbation';
+        set(state_text_handle, 'String', state_text, 'Color', 'b');
+    elseif disturbance_counter >= 7500
         disturbance_counter = 0;
+        state_text = 'Stabilizing';
+        set(state_text_handle, 'String', state_text, 'Color', 'r');
+    end
+    
+    % Check post-perturbation stabilization
+    if perturbation_applied && ~post_perturbation_stable_state
+        if abs(theta*180/pi) < threshold
+            stabilization_counter = stabilization_counter + 1;
+            if stabilization_counter >= stabilization_count
+                post_perturbation_stable_state = true;
+                post_perturbation_stable_time = time - disturbance_duration * time_skip - 0.5;
+                post_perturbation_stable_text = ['Post-Perturbation Stabilization time:', num2str(post_perturbation_stable_time)];
+                state_text = 'Stable';
+                set(state_text_handle, 'String', state_text, 'Color', 'g');
+            end
+        else
+            stabilization_counter = 0;
+        end
     end
 
     % Lead Lag Compensator Control Signal
@@ -126,8 +204,8 @@ while true
     %     k*time_skip*(z1+z2)*(error-error_prev) + ...
     %     error*k*z1*z2*(time_skip^2) + ...
     %     2*torque_prev - torque_prev_prev + ...
-    %     time_skip*torque_prev_prev*(p1+p2)) / ...
-    %     (p1*p2*(time_skip^2) + (p1+p2)*time_skip + 1);
+    %     torque_prev*k*p1*(time_skip^2) + ...
+    %     torque_prev_prev*p2*k*(time_skip^2));
 
     % limit max torque
     if torque_in < -1
@@ -151,10 +229,20 @@ while true
     v_beta_0 = v_beta;
 
     % Draw graphics
+    set(stabilization_text_handle, 'String', stable_text);
+    set(post_perturbation_stabilization_text_handle, 'String', post_perturbation_stable_text);
+    set(theta_text_handle, 'String', theta_text, 'Color', 'b');
+    set(beta_text_handle, 'String', beta_text, 'Color', 'r');
     set(text_handle, 'String', text);
     set(pendulum,'XData',[0, xw],'YData',[0, yw]);
     set(radious,'XData',[xw, xw_end], 'YData', [yw, yw_end]);
     set(wheel, 'Position',pos_wheel,'Curvature',[1 1]);
+    drawnow;
+
+    % Update theta values for the plot
+    theta_values = [theta_values, theta];
+    time_values = [time_values, time];
+    set(theta_plot, 'XData', time_values, 'YData', theta_values);
     drawnow;
 
     % update previous errors and torque
