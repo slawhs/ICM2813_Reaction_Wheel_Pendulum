@@ -33,9 +33,6 @@ beta_Q = 0;
 
 %% Initialize Graphic
 f1 = figure;
-hold on;
-grid on;
-
 subplot(2,1,1);  % Create subplot for drawing
 hold on;
 grid on;
@@ -74,8 +71,8 @@ state_frame_text_handle = text(0.35, 0.75, 'State:', 'Units', 'normalized', 'Fon
 state_text_handle = text(0.45, 0.75, 'Stabilizing', 'Units', 'normalized', 'FontSize', 6, 'FontWeight', 'bold', 'Color', 'r');
 
 % Initialize variables for plotting theta over time
-theta_values = [0];
-time_values = [0];
+theta_values = [];
+time_values = [];
 
 subplot(2,1,2);  % Create subplot for theta vs time
 theta_plot = plot(time_values, theta_values, 'b');
@@ -106,9 +103,11 @@ torque_prev_prev = 0;
 error_prev = 0;
 error_prev_prev = 0;
 
+% Distrubance parameters
 disturbance_duration = 7 * 1000;
 disturbance_counter = 0;
 
+% Stabilization
 stabilization_counter = 0;
 stable_state = false;
 post_perturbation_stable_state = false;
@@ -199,18 +198,12 @@ while true
         end
     end
 
-    % Lead Lag Compensator Control Signal
-    % torque_in =  (k*(error - 2*error_prev + error_prev_prev) + ...
-    %     k*time_skip*(z1+z2)*(error
-
-
     % limit max torque
     if torque_in < -1
         torque_in = -1;
     elseif torque_in > 1
         torque_in = 1;
     end
-    % torque_in = max(min(torque_in, 1), -1);
 
     % Update Positions
     xw = -L*sin(theta); %wheel x center
@@ -234,6 +227,14 @@ while true
     set(pendulum,'XData',[0, xw],'YData',[0, yw]);
     set(radious,'XData',[xw, xw_end], 'YData', [yw, yw_end]);
     set(wheel, 'Position',pos_wheel,'Curvature',[1 1]);
+    drawnow;
+
+    % Update theta values for the plot
+    theta_values = [theta_values, theta*180/pi];
+    time_values = [time_values, time];
+    ref_values = [ref_values, 0];
+    plot(time_values, theta_values);
+    plot(time_values, [])
     drawnow;
 
     % update previous errors and torque
