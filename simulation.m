@@ -27,6 +27,7 @@ d_beta_0 = 0;
 v_beta_0 = [beta_0, d_beta_0];
 
 torque_in = 0;
+torque_limit = 5;
 
 theta_Q = pi/6;
 beta_Q = 0;
@@ -146,7 +147,7 @@ while time <= 10
     
     % Get time of stabilization
     if ~stable_state
-        if abs(theta*180/pi) - abs(theta_Q*180/pi) < threshold
+        if abs(theta*180/pi) - abs(theta_Q*180/pi) < threshold % Theta stable condition
             stabilization_counter = stabilization_counter + 1;
             if stabilization_counter >= stabilization_count
                 stable_state = true;
@@ -179,7 +180,7 @@ while time <= 10
     
     % Check Post-Disturbance stabilization
     if disturbance_applied && ~post_disturbance_stable_state
-        if abs(theta*180/pi) - abs(theta_Q*180/pi) < threshold
+        if abs(theta*180/pi) - abs(theta_Q*180/pi) < threshold % Theta stable condition
             stabilization_counter = stabilization_counter + 1;
             if stabilization_counter >= stabilization_count
                 post_disturbance_stable_state = true;
@@ -194,27 +195,26 @@ while time <= 10
     end
 
     % Limit max torque
-    if torque_in < -1000
-        torque_in = -1000;
-    elseif torque_in > 1000
-        torque_in = 1000;
+    if torque_in < -torque_limit
+        torque_in = -torque_limit;
+    elseif torque_in > torque_limit
+        torque_in = torque_limit;
     end
 
     % Update Positions
-    xw = -L*sin(theta); %wheel x center
-    yw = L*cos(theta); %wheel y center
+    xw = -L*sin(theta); % Wheel x center
+    yw = L*cos(theta); % Wheel y center
     
-    xw_end = xw -  r*sin(beta); %wheel x end
-    yw_end = yw + r*cos(beta); %wheel y end
+    xw_end = xw -  r*sin(beta); % Wheel x end
+    yw_end = yw + r*cos(beta); % Wheel y end
 
-    pos_wheel = [xw-r, yw-r, r*2, r*2]; %[x y w h]
+    pos_wheel = [xw-r, yw-r, r*2, r*2]; % [x y w h]
 
     % Update initial conditions for next iteration
     v_theta_0 = v_theta;
     v_beta_0 = v_beta;
 
     % Draw graphics and variables
-
     theta_text = ['Theta:', num2str(theta*180/pi)];
     beta_text = ['Beta:', num2str(beta*180/pi)];
     set(stabilization_text_handle, 'String', stable_text);
@@ -244,15 +244,15 @@ while time <= 10
 end
 
 function v_theta = theta_model(~, y, a, b, torque_in, theta_Q, torque_Q)
-    v_theta = zeros(2,1);  %initialize a 2x1 null-vector ([0,0])
-    v_theta(1) = y(2);  %theta
-    v_theta(2) = (-a*(sin(y(1) - theta_Q)) - (torque_in - torque_Q))/b;  %ddtheta
+    v_theta = zeros(2,1);  % Initialize a 2x1 null-vector ([0,0])
+    v_theta(1) = y(2);  % Theta
+    v_theta(2) = (-a*(sin(y(1) - theta_Q)) - (torque_in - torque_Q))/b;  % ddtheta
 end
 
 function v_beta = beta_model(~, y, Jw, torque_in)
-    v_beta = zeros(2,1);  %initialize a 2x1 null-vector ([0,0])
-    v_beta(1) = y(2);  %theta
-    v_beta(2) = torque_in/Jw;  %ddtheta
+    v_beta = zeros(2,1);  % Initialize a 2x1 null-vector ([0,0])
+    v_beta(1) = y(2);  % Beta
+    v_beta(2) = torque_in/Jw;  % ddbeta
 end
 
 function disturbance = input_disturbance(time)
