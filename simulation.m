@@ -27,11 +27,12 @@ d_beta_0 = 0;
 v_beta_0 = [beta_0, d_beta_0];
 
 torque_in = 0;
+torque_limit = 5;
 
 theta_Q = 0;
 beta_Q = 0;
 
-%% Initialize Graphic
+%% Initialize Graphics
 f1 = figure;
 subplot(2,1,1);  % Create subplot for drawing
 hold on;
@@ -66,7 +67,7 @@ text_handle = text(0.05, 0.95, 'Time: 0', 'Units', 'normalized', 'FontSize', 6, 
 theta_text_handle = text(0.05, 0.85, 'Theta: 0', 'Units', 'normalized', 'FontSize', 6, 'FontWeight', 'bold');
 beta_text_handle = text(0.05, 0.75, 'Beta: 0', 'Units', 'normalized', 'FontSize', 6, 'FontWeight', 'bold');
 stabilization_text_handle = text(0.35, 0.95, 'Stabilization time: N/A', 'Units', 'normalized', 'FontSize', 6, 'FontWeight', 'bold');
-post_perturbation_stabilization_text_handle = text(0.35, 0.85, 'Post-Perturbation Stabilization time: N/A', 'Units', 'normalized', 'FontSize', 6, 'FontWeight', 'bold');
+post_disturbance_stabilization_text_handle = text(0.35, 0.85, 'Post-Perturbation Stabilization time: N/A', 'Units', 'normalized', 'FontSize', 6, 'FontWeight', 'bold');
 state_frame_text_handle = text(0.35, 0.75, 'State:', 'Units', 'normalized', 'FontSize', 6, 'FontWeight', 'bold');
 state_text_handle = text(0.45, 0.75, 'Stabilizing', 'Units', 'normalized', 'FontSize', 6, 'FontWeight', 'bold', 'Color', 'r');
 
@@ -85,14 +86,7 @@ grid on;
 time_skip = 0.001;
 time = 0;
 
-%% Controllers discretization
-% Compensator Parameters
-k = 5.5;
-z1 = 0.1;
-p1 = 0.5;
-z2 = 0.03;
-p2 = 0.0093;
-
+%% Controller discretization
 % PID Parameters
 kp = -71.25; %-120.74; % -7.1649  % -59.025  % -59.025;
 ki = 735.369; %750.369; % 123.0725 % -8.38155 % -2.159;
@@ -111,22 +105,22 @@ disturbance_counter = 0;
 % Stabilization text setting
 stabilization_counter = 0;
 stable_state = false;
-post_perturbation_stable_state = false;
+post_disturbance_stable_state = false;
 stable_text = 'Stabilization time: N/A';
-post_perturbation_stable_text = 'Post-Perturbation Stabilization time: N/A';
+post_disturbance_stable_text = 'Post-Perturbation Stabilization time: N/A';
 state_frame_text = 'State';
 state_text = 'Stabilizing';
 threshold = 0.1;  % Threshold for considering the pendulum stabilized
 stable_time = 0;
-post_perturbation_stable_time = 0;
+post_disturbance_stable_time = 0;
 stabilization_period = 1;  % Time in seconds to consider the system stabilized
 stabilization_count = round(stabilization_period / time_skip);
 
-perturbation_applied = false;
+disturbance_applied = false;
 
 %% Main Loop
 
-while true
+while time <= 10
     % Time
     disturbance_counter = disturbance_counter + 1;
     time = time + time_skip;
@@ -169,13 +163,13 @@ while true
         end
     end
 
-    % Add input perturbation
+    % Add input disturbance
     if disturbance_duration <= disturbance_counter && disturbance_counter < disturbance_duration + 500
         torque_in = torque_in + input_disturbance(time);
-        perturbation_applied = true;
-        post_perturbation_stable_state = false;
+        disturbance_applied = true;
+        post_disturbance_stable_state = false;
         stabilization_counter = 0;
-        state_text = 'Applying Perturbation';
+        state_text = 'Applying Disturbance';
         set(state_text_handle, 'String', state_text, 'Color', 'b');
     elseif disturbance_counter >= 7500
         disturbance_counter = 0;
@@ -183,14 +177,14 @@ while true
         set(state_text_handle, 'String', state_text, 'Color', 'r');
     end
     
-    % Check post-perturbation stabilization
-    if perturbation_applied && ~post_perturbation_stable_state
+    % Check post-disturbance stabilization
+    if disturbance_applied && ~post_disturbance_stable_state
         if abs(theta*180/pi) < threshold
             stabilization_counter = stabilization_counter + 1;
             if stabilization_counter >= stabilization_count
-                post_perturbation_stable_state = true;
-                post_perturbation_stable_time = time - disturbance_duration * time_skip - 0.5;
-                post_perturbation_stable_text = ['Post-Perturbation Stabilization time:', num2str(post_perturbation_stable_time)];
+                post_disturbance_stable_state = true;
+                post_disturbance_stable_time = time - disturbance_duration * time_skip - 0.5;
+                post_disturbance_stable_text = ['Post-Perturbation Stabilization time:', num2str(post_disturbance_stable_time)];
                 state_text = 'Stable';
                 set(state_text_handle, 'String', state_text, 'Color', 'g');
             end
@@ -200,10 +194,10 @@ while true
     end
 
     % limit max torque
-    if torque_in < -1
-        torque_in = -1;
-    elseif torque_in > 1
-        torque_in = 1;
+    if torque_in < -torque_limit
+        torque_in = -torque_limit;
+    elseif torque_in > torque_limit
+        torque_in = torque_limit;
     end
 
     % Update Positions
@@ -221,7 +215,7 @@ while true
 
     % Draw graphics
     set(stabilization_text_handle, 'String', stable_text);
-    set(post_perturbation_stabilization_text_handle, 'String', post_perturbation_stable_text);
+    set(post_disturbance_stabilization_text_handle, 'String', post_disturbance_stable_text);
     set(theta_text_handle, 'String', theta_text, 'Color', 'b');
     set(beta_text_handle, 'String', beta_text, 'Color', 'r');
     set(text_handle, 'String', text);
@@ -259,9 +253,10 @@ function v_beta = beta_model(~, y, Jw, torque_in)
 end
 
 function disturbance = input_disturbance(time)
-    % Example perturbation: sinusoidal disturbance
+    % Sinusoidal disturbance
     amplitude = 100;
     frequency = 0.5; % 1 Hz
     disturbance = amplitude * sin(2 * pi * frequency * time);
+    % Constant disturbance
     %disturbance = amplitude;
 end
