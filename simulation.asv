@@ -197,7 +197,9 @@ while time <= 10
         set(state_text_handle, 'String', state_text, 'Color', 'b');
     
     % Impulse disturbance
+
     %elseif disturbance_counter >= disturbance_duration + 500
+
     %     disturbance_counter = 0;
     %     state_text = 'Stabilizing';
     %     set(state_text_handle, 'String', state_text, 'Color', 'r');
