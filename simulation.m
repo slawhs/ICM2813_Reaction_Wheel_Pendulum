@@ -29,7 +29,7 @@ v_beta_0 = [beta_0, d_beta_0];
 torque_in = 0;
 torque_limit = 5;
 
-reference = -pi/6; % Desired angle
+reference = 0; % Desired angle
 theta_Q = reference;
 torque_Q = 0;
 
@@ -90,7 +90,7 @@ ylabel('Theta (deg)');
 title('Theta vs Time');
 grid on;
 
-subplot(2,2,3);
+subplot(2,2,3);  % Create subplot for error vs time
 hold on;
 error_plot = plot(time_values, error_values, 'Color', [0.6350 0.0780 0.1840]);
 ylim([-90 90]);
@@ -100,7 +100,7 @@ ylabel('Error (deg)');
 title('Error vs Time');
 grid on;
 
-subplot(2,2,4);
+subplot(2,2,4);  % Create subplot for torque vs time
 hold on;
 control_signal_plot = plot(time_values, torque_values, 'Color', [0.8500 0.3250 0.0980]);
 ylim([-torque_limit torque_limit]);
@@ -117,7 +117,7 @@ time = 0;
 
 % PID Parameters
 kp = -220;
-ki = 0;
+ki = -750;
 kd = 17;
 
 % Controller initial conditions
@@ -245,7 +245,7 @@ while true %time <= 10
     torque_values = [torque_values, torque_in];
 
     % Draw information plots
-    plot(time_values, theta_values, 'b', time_values, ref_values, 'r--');
+    % plot(time_values, theta_values, 'b', 'r--');
     set(theta_plot, 'XData', time_values, 'YData', theta_values);
     set(ref_plot, 'XData', time_values, 'YData', ref_values);
     set(error_plot, 'XData', time_values, 'YData', error_values);
@@ -286,7 +286,7 @@ end
 
 function disturbance = input_disturbance(time)
     % Sinusoidal disturbance
-    amplitude = 10;
+    amplitude = 1;
     frequency = 0.5; % 1 Hz
     disturbance = amplitude * sin(2 * pi * frequency * time);
 

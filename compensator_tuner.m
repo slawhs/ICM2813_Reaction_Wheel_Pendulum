@@ -18,7 +18,7 @@ b = Mp*Lp^2 + Mw*L^2 + Jp;
 
 %% Control System Designer
 G_theta = tf([1], [-b 0 -a]);
-% controlSystemDesigner(G_theta)
+% controlSystemDesigner(-G_theta)
 pidTuner(G_theta,'PID')
 
 %% Step Response
