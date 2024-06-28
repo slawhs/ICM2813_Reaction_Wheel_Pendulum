@@ -116,9 +116,9 @@ time = 0;
 %% Controllers discretization
 
 % PID Parameters
-kp = -230; %-220%-190; %-120.74; % -7.1649  % -59.025  % -59.025;
-ki = 0; %1%0 %5.369; %750.369; % 123.0725 % -8.38155 % -2.159;
-kd = 17; %0%17; %23;
+kp = -13.7; %-220%-190; %-120.74; % -7.1649  % -59.025  % -59.025;
+ki = -36.3; %1%0 %5.369; %750.369; % 123.0725 % -8.38155 % -2.159;
+kd = -1.29; %0%17; %23;
 
 % Controller initial conditions
 torque_prev = 0;
@@ -127,7 +127,7 @@ error_prev = 0;
 error_prev_prev = 0;
 
 % Disturbance parameters
-disturbance_duration = 3 * 1000;
+disturbance_interval = 6 * 1000;
 disturbance_counter = 0;
 
 % Stabilization text setting
@@ -156,7 +156,7 @@ while time <= 10
 
     % Update Variables
     [~, f_theta] = ode45(@(t,y) theta_model(t, y, a, b, torque_in, theta_Q, torque_Q), [0,time_skip], v_theta_0);
-    [~, f_beta] = ode45(@(t,y) beta_model(t, y, Jw, torque_in),[0 time_skip], v_beta_0);
+    [~, f_beta] = ode45(@(t,y) beta_model(t, y, Jw, torque_in, torque_Q),[0 time_skip], v_beta_0);
     
     v_theta = f_theta(end, :);
     v_beta = f_beta(end, :);
@@ -173,7 +173,7 @@ while time <= 10
     
     % Get time of stabilization
     if ~stable_state
-        if abs(rad2deg(theta)) - abs(rad2deg(theta_Q)) < threshold  % Theta stable condition
+        if abs(error) < threshold  % Theta stable condition
             stabilization_counter = stabilization_counter + 1;
             if stabilization_counter >= stabilization_count
                 stable_state = true;
@@ -188,7 +188,7 @@ while time <= 10
     end
 
     % Add input disturbance
-    if disturbance_duration <= disturbance_counter && disturbance_counter < disturbance_duration + 500
+    if disturbance_interval <= disturbance_counter && disturbance_counter < disturbance_interval + 500
         torque_in = torque_in + input_disturbance(time);
         disturbance_applied = true;
         post_disturbance_stable_state = false;
@@ -197,10 +197,10 @@ while time <= 10
         set(state_text_handle, 'String', state_text, 'Color', 'b');
     
     % Impulse disturbance
-    %elseif disturbance_counter >= disturbance_duration + 500
-    %     disturbance_counter = 0;
-    %     state_text = 'Stabilizing';
-    %     set(state_text_handle, 'String', state_text, 'Color', 'r');
+    elseif disturbance_counter >= disturbance_interval + 500
+        disturbance_counter = 0;
+        state_text = 'Stabilizing';
+        set(state_text_handle, 'String', state_text, 'Color', 'r');
     end
     
     % Check Post-Disturbance stabilization
@@ -209,7 +209,7 @@ while time <= 10
             stabilization_counter = stabilization_counter + 1;
             if stabilization_counter >= stabilization_count
                 post_disturbance_stable_state = true;
-                post_disturbance_stable_time = time - disturbance_duration * time_skip - 0.5;
+                post_disturbance_stable_time = time - disturbance_interval * time_skip - 0.5;
                 post_disturbance_stable_text = ['Post-Disturbance Stabilization Time:', num2str(post_disturbance_stable_time)];
                 state_text = 'Stable';
                 set(state_text_handle, 'String', state_text, 'Color', 'g');
@@ -279,13 +279,13 @@ end
 function v_theta = theta_model(~, y, a, b, torque_in, theta_Q, torque_Q)
     v_theta = zeros(2,1);  % Initialize a 2x1 null-vector ([0,0])
     v_theta(1) = y(2);  % Theta
-    v_theta(2) = (-a*(sin(y(1) - theta_Q)) - (torque_in - torque_Q))/b;  % ddtheta
+    v_theta(2) = (-a*cos(theta_Q)*(y(1) - theta_Q)) - (torque_in - torque_Q)/b;  % ddtheta
 end
 
-function v_beta = beta_model(~, y, Jw, torque_in)
+function v_beta = beta_model(~, y, Jw, torque_in, torque_Q)
     v_beta = zeros(2,1);  % Initialize a 2x1 null-vector ([0,0])
     v_beta(1) = y(2);  % Beta
-    v_beta(2) = torque_in/Jw;  % ddbeta
+    v_beta(2) = (torque_in-torque_Q)/Jw;  % ddbeta
 end
 
 function disturbance = input_disturbance(time)
