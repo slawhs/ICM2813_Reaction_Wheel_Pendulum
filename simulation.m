@@ -29,7 +29,7 @@ v_beta_0 = [beta_0, d_beta_0];
 torque_in = 0;
 torque_limit = 5;
 
-theta_Q = pi/6; % Desired angle
+reference = pi/6; % Desired angle
 beta_Q = 0;
 torque_Q = 0; % -a*sin(theta_Q)/b
 
@@ -72,11 +72,11 @@ post_disturbance_stabilization_text_handle = text(0.35, 0.85, 'Post-Disturbance 
 state_frame_text_handle = text(0.35, 0.75, 'State:', 'Units', 'normalized', 'FontSize', 6, 'FontWeight', 'bold');
 state_text_handle = text(0.45, 0.75, 'Stabilizing', 'Units', 'normalized', 'FontSize', 6, 'FontWeight', 'bold', 'Color', 'r');
 
-% Initialize variables for plotting theta over time
+% Initial values for information plots
 theta_values = [rad2deg(theta_0)];
 time_values = [0];
-ref_values = [rad2deg(theta_Q)];
-error_values = [rad2deg(theta_Q-theta_0)];
+ref_values = [rad2deg(reference)];
+error_values = [rad2deg(reference-theta_0)];
 torque_values = [torque_in];
 
 subplot(2,2,2);  % Create subplot for theta vs time
@@ -116,18 +116,16 @@ time = 0;
 %% Controllers discretization
 
 % PID Parameters
-kp = -13.7; %-220%-190; %-120.74; % -7.1649  % -59.025  % -59.025;
-ki = -36.3; %1%0 %5.369; %750.369; % 123.0725 % -8.38155 % -2.159;
-kd = -1.29; %0%17; %23;
+kp = -220; %-220%-190; %-120.74; % -7.1649  % -59.025  % -59.025;
+ki = 0; %1%0 %5.369; %750.369; % 123.0725 % -8.38155 % -2.159;
+kd = 17; %0%17; %23;
 
 % Controller initial conditions
-torque_prev = 0;
-torque_prev_prev = 0;
 error_prev = 0;
 error_prev_prev = 0;
 
 % Disturbance parameters
-disturbance_interval = 6 * 1000;
+disturbance_interval = 2 * 1000;
 disturbance_counter = 0;
 
 % Stabilization text setting
@@ -155,7 +153,7 @@ while time <= 10
     text = ['Time:', num2str(time)];
 
     % Update Variables
-    [~, f_theta] = ode45(@(t,y) theta_model(t, y, a, b, torque_in, theta_Q, torque_Q), [0,time_skip], v_theta_0);
+    [~, f_theta] = ode45(@(t,y) theta_model(t, y, a, b, torque_in, reference, torque_Q), [0,time_skip], v_theta_0);
     [~, f_beta] = ode45(@(t,y) beta_model(t, y, Jw, torque_in, torque_Q),[0 time_skip], v_beta_0);
     
     v_theta = f_theta(end, :);
@@ -164,12 +162,19 @@ while time <= 10
     beta = wrapToPi(v_beta(1));
 
     % Update Controller Variables
-    error = theta_Q - theta;  % Update actual error
+    error = reference - theta;  % Update actual error
     
     % PID Control Signal
     torque_in = kp*(error - error_prev) + ...
         ki*error*time_skip + ...
         kd*((error - 2*error_prev + error_prev_prev)/time_skip);
+
+    % Limit max torque
+    if torque_in < -torque_limit
+        torque_in = -torque_limit;
+    elseif torque_in > torque_limit
+        torque_in = torque_limit;
+    end
     
     % Get time of stabilization
     if ~stable_state
@@ -205,7 +210,7 @@ while time <= 10
     
     % Check Post-Disturbance stabilization
     if disturbance_applied && ~post_disturbance_stable_state
-        if abs(rad2deg(theta)) - abs(rad2deg(theta_Q)) < threshold % Theta stable condition
+        if abs(rad2deg(theta)) - abs(rad2deg(reference)) < threshold % Theta stable condition
             stabilization_counter = stabilization_counter + 1;
             if stabilization_counter >= stabilization_count
                 post_disturbance_stable_state = true;
@@ -217,13 +222,6 @@ while time <= 10
         else
             stabilization_counter = 0;
         end
-    end
-
-    % Limit max torque
-    if torque_in < -torque_limit
-        torque_in = -torque_limit;
-    elseif torque_in > torque_limit
-        torque_in = torque_limit;
     end
 
     % Update Positions
@@ -240,10 +238,10 @@ while time <= 10
     v_beta_0 = v_beta;
     
     % Update theta values for the plot
-    theta_values = [theta_values, rad2deg(theta)];
+    theta_values = [theta_values, rad2deg(wrapToPi(theta))];
     time_values = [time_values, time];
-    ref_values = [ref_values, rad2deg(theta_Q)];
-    error_values = [error_values, rad2deg(error)];
+    ref_values = [ref_values, rad2deg(reference)];
+    error_values = [error_values, rad2deg(wrapToPi(error))];
     torque_values = [torque_values, torque_in];
 
     % Draw information plots
@@ -270,8 +268,6 @@ while time <= 10
     % Update previous errors and torque
     error_prev_prev = error_prev;
     error_prev = error;  % Update previous error
-    torque_prev_prev = torque_prev;
-    torque_prev = torque_in;  % Update previous torque
 
     pause(time_skip);
 end
@@ -279,13 +275,13 @@ end
 function v_theta = theta_model(~, y, a, b, torque_in, theta_Q, torque_Q)
     v_theta = zeros(2,1);  % Initialize a 2x1 null-vector ([0,0])
     v_theta(1) = y(2);  % Theta
-    v_theta(2) = (-a*cos(theta_Q)*(y(1) - theta_Q)) - (torque_in - torque_Q)/b;  % ddtheta
+    v_theta(2) = (-a*cos(theta_Q)*(y(1) - theta_Q) - (torque_in - torque_Q))/b;  % ddtheta
 end
 
 function v_beta = beta_model(~, y, Jw, torque_in, torque_Q)
     v_beta = zeros(2,1);  % Initialize a 2x1 null-vector ([0,0])
     v_beta(1) = y(2);  % Beta
-    v_beta(2) = (torque_in-torque_Q)/Jw;  % ddbeta
+    v_beta(2) = (torque_in - torque_Q)/Jw;  % ddbeta
 end
 
 function disturbance = input_disturbance(time)
