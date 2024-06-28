@@ -29,9 +29,9 @@ v_beta_0 = [beta_0, d_beta_0];
 torque_in = 0;
 torque_limit = 5;
 
-theta_Q = pi/6; % Desired angle
-beta_Q = 0;
-torque_Q = 0; % -a*sin(theta_Q)/b
+reference = -pi/6; % Desired angle
+theta_Q = reference;
+torque_Q = 0;
 
 %% Initialize Graphic
 f1 = figure;
@@ -45,15 +45,15 @@ ylabel('Y (m)');
 title('Reaction Wheel Inverted Pendulum')
 
 % Initial positions
-xw = -L*sin(theta_0); %wheel x center
-yw = L*cos(theta_0); %wheel y center
+xw = -L*sin(theta_0); % Wheel x center
+yw = L*cos(theta_0); % Wheel y center
 
-xw_end = xw - r*sin(beta_0); %wheel x end
-yw_end = yw + r*cos(beta_0); %wheel y end
+xw_end = xw - r*sin(beta_0); % Wheel x end
+yw_end = yw + r*cos(beta_0); % Wheel y end
 
 pos_wheel = [xw-r, yw-r, r*2, r*2]; %[x y w h]
 
-base = plot([-0.5, 0.5],[0, 0],'k','LineWidth',2); % base line
+base = plot([-0.5, 0.5],[0, 0],'k','LineWidth',2); % Base line
 
 radious = plot([xw, xw_end],[yw, yw_end],'r','LineWidth',1.5); % Pendulum rod
 pendulum = plot([0, xw],[0, yw],'b','LineWidth',1.5); % Pendulum rod
@@ -64,19 +64,19 @@ axis(gca,'equal');
 xlim([-0.6 0.6]);
 ylim([-0.1 0.6]);
 
-text_handle = text(0.05, 0.95, 'Time: 0', 'Units', 'normalized', 'FontSize', 6, 'FontWeight', 'bold');
-theta_text_handle = text(0.05, 0.85, 'Theta: 0', 'Units', 'normalized', 'FontSize', 6, 'FontWeight', 'bold');
-beta_text_handle = text(0.05, 0.75, 'Beta: 0', 'Units', 'normalized', 'FontSize', 6, 'FontWeight', 'bold');
-stabilization_text_handle = text(0.35, 0.95, 'Stabilization Time: N/A', 'Units', 'normalized', 'FontSize', 6, 'FontWeight', 'bold');
-post_disturbance_stabilization_text_handle = text(0.35, 0.85, 'Post-Disturbance Stabilization Time: N/A', 'Units', 'normalized', 'FontSize', 6, 'FontWeight', 'bold');
-state_frame_text_handle = text(0.35, 0.75, 'State:', 'Units', 'normalized', 'FontSize', 6, 'FontWeight', 'bold');
-state_text_handle = text(0.45, 0.75, 'Stabilizing', 'Units', 'normalized', 'FontSize', 6, 'FontWeight', 'bold', 'Color', 'r');
+text_handle = text(0.05, 0.95, 'Time: 0', 'Units', 'normalized', 'FontSize', 8, 'FontWeight', 'bold');
+theta_text_handle = text(0.05, 0.85, 'Theta: 0', 'Units', 'normalized', 'FontSize', 8, 'FontWeight', 'bold');
+beta_text_handle = text(0.05, 0.75, 'Beta: 0', 'Units', 'normalized', 'FontSize', 8, 'FontWeight', 'bold');
+stabilization_text_handle = text(0.35, 0.95, 'Stabilization Time: N/A', 'Units', 'normalized', 'FontSize', 8, 'FontWeight', 'bold');
+post_disturbance_stabilization_text_handle = text(0.35, 0.85, 'Post-Disturbance Stabilization Time: N/A', 'Units', 'normalized', 'FontSize', 8, 'FontWeight', 'bold');
+state_frame_text_handle = text(0.35, 0.75, 'State:', 'Units', 'normalized', 'FontSize', 8, 'FontWeight', 'bold');
+state_text_handle = text(0.45, 0.75, 'Stabilizing', 'Units', 'normalized', 'FontSize', 8, 'FontWeight', 'bold', 'Color', 'r');
 
-% Initialize variables for plotting theta over time
+% Initial values for information plots
 theta_values = [rad2deg(theta_0)];
 time_values = [0];
-ref_values = [rad2deg(theta_Q)];
-error_values = [rad2deg(theta_Q-theta_0)];
+ref_values = [rad2deg(reference)];
+error_values = [rad2deg(reference-theta_0)];
 torque_values = [torque_in];
 
 subplot(2,2,2);  % Create subplot for theta vs time
@@ -116,18 +116,16 @@ time = 0;
 %% Controllers discretization
 
 % PID Parameters
-kp = -13.7; %-220%-190; %-120.74; % -7.1649  % -59.025  % -59.025;
-ki = -36.3; %1%0 %5.369; %750.369; % 123.0725 % -8.38155 % -2.159;
-kd = -1.29; %0%17; %23;
+kp = -220;
+ki = 0;
+kd = 17;
 
 % Controller initial conditions
-torque_prev = 0;
-torque_prev_prev = 0;
 error_prev = 0;
 error_prev_prev = 0;
 
 % Disturbance parameters
-disturbance_interval = 6 * 1000;
+disturbance_interval = 2 * 1000;
 disturbance_counter = 0;
 
 % Stabilization text setting
@@ -148,7 +146,7 @@ disturbance_applied = false;
 
 %% Main Loop
 
-while time <= 10
+while true %time <= 10
     % Time
     disturbance_counter = disturbance_counter + 1;
     time = time + time_skip;
@@ -164,15 +162,22 @@ while time <= 10
     beta = wrapToPi(v_beta(1));
 
     % Update Controller Variables
-    error = theta_Q - theta;  % Update actual error
+    error = reference - theta;  % Update actual error
     
     % PID Control Signal
     torque_in = kp*(error - error_prev) + ...
         ki*error*time_skip + ...
         kd*((error - 2*error_prev + error_prev_prev)/time_skip);
     
+    % Limit max torque
+    if torque_in < -torque_limit
+        torque_in = -torque_limit;
+    elseif torque_in > torque_limit
+        torque_in = torque_limit;
+    end
+
     % Get time of stabilization
-    if ~stable_state
+    if ~stable_state                
         if abs(error) < threshold  % Theta stable condition
             stabilization_counter = stabilization_counter + 1;
             if stabilization_counter >= stabilization_count
@@ -181,7 +186,7 @@ while time <= 10
                 stable_text = ['Stabilization Time:', num2str(stable_time)];
                 state_text = 'Stable';
                 set(state_text_handle, 'String', state_text, 'Color', 'g');
-            end
+            end      
         else
             stabilization_counter = 0;
         end
@@ -195,7 +200,7 @@ while time <= 10
         stabilization_counter = 0;
         state_text = 'Applying disturbance';
         set(state_text_handle, 'String', state_text, 'Color', 'b');
-    
+
     % Impulse disturbance
     elseif disturbance_counter >= disturbance_interval + 500
         disturbance_counter = 0;
@@ -205,7 +210,7 @@ while time <= 10
     
     % Check Post-Disturbance stabilization
     if disturbance_applied && ~post_disturbance_stable_state
-        if abs(rad2deg(theta)) - abs(rad2deg(theta_Q)) < threshold % Theta stable condition
+        if abs(error) < threshold % Theta stable condition
             stabilization_counter = stabilization_counter + 1;
             if stabilization_counter >= stabilization_count
                 post_disturbance_stable_state = true;
@@ -217,13 +222,6 @@ while time <= 10
         else
             stabilization_counter = 0;
         end
-    end
-
-    % Limit max torque
-    if torque_in < -torque_limit
-        torque_in = -torque_limit;
-    elseif torque_in > torque_limit
-        torque_in = torque_limit;
     end
 
     % Update Positions
@@ -239,15 +237,15 @@ while time <= 10
     v_theta_0 = v_theta;
     v_beta_0 = v_beta;
     
-    % Update theta values for the plot
+    % Update values for information plots
     theta_values = [theta_values, rad2deg(theta)];
     time_values = [time_values, time];
-    ref_values = [ref_values, rad2deg(theta_Q)];
+    ref_values = [ref_values, rad2deg(reference)];
     error_values = [error_values, rad2deg(error)];
     torque_values = [torque_values, torque_in];
 
     % Draw information plots
-    % plot(time_values, theta_values, 'b', time_values, ref_values, 'r--');
+    plot(time_values, theta_values, 'b', time_values, ref_values, 'r--');
     set(theta_plot, 'XData', time_values, 'YData', theta_values);
     set(ref_plot, 'XData', time_values, 'YData', ref_values);
     set(error_plot, 'XData', time_values, 'YData', error_values);
@@ -270,8 +268,6 @@ while time <= 10
     % Update previous errors and torque
     error_prev_prev = error_prev;
     error_prev = error;  % Update previous error
-    torque_prev_prev = torque_prev;
-    torque_prev = torque_in;  % Update previous torque
 
     pause(time_skip);
 end
@@ -279,21 +275,21 @@ end
 function v_theta = theta_model(~, y, a, b, torque_in, theta_Q, torque_Q)
     v_theta = zeros(2,1);  % Initialize a 2x1 null-vector ([0,0])
     v_theta(1) = y(2);  % Theta
-    v_theta(2) = (-a*cos(theta_Q)*(y(1) - theta_Q)) - (torque_in - torque_Q)/b;  % ddtheta
+    v_theta(2) = (-a*cos(theta_Q)*(y(1) - theta_Q) - (torque_in - torque_Q))/b; % ddtheta
 end
 
 function v_beta = beta_model(~, y, Jw, torque_in, torque_Q)
     v_beta = zeros(2,1);  % Initialize a 2x1 null-vector ([0,0])
     v_beta(1) = y(2);  % Beta
-    v_beta(2) = (torque_in-torque_Q)/Jw;  % ddbeta
+    v_beta(2) = (torque_in - torque_Q)/Jw;  % ddbeta
 end
 
 function disturbance = input_disturbance(time)
     % Sinusoidal disturbance
-    amplitude = 1;
+    amplitude = 10;
     frequency = 0.5; % 1 Hz
-    %disturbance = amplitude * sin(2 * pi * frequency * time);
+    disturbance = amplitude * sin(2 * pi * frequency * time);
 
     % Constant disturbance
-    disturbance = amplitude;
+    %disturbance = amplitude;
 end
